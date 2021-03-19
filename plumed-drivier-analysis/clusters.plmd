@@ -1,0 +1,41 @@
+# Define atom groups
+gra: GROUP ATOMS=1-9152:1 
+wat: GROUP ATOMS=9153-43319:3
+sod: GROUP ATOMS=43320-43737:1
+chl: GROUP ATOMS=43738-44155:1
+slt: GROUP ATOMS=43320-44155:1
+sln: GROUP ATOMS=9153-44155:1 
+
+# Set a virtual atom at the origin and in the 'bulk'
+p0: FIXEDATOM AT=2.696525,2.75872,7.403535
+p1: FIXEDATOM AT=2.696525,2.75872,11.403535
+
+# Identify cations at the interface and in the bulk
+denssod: DENSITY SPECIES=43320-43737
+sodint: AROUND DATA=denssod ATOM=p0 ZLOWER=1.4 ZUPPER=2.0 SIGMA=0.01
+sodblk: AROUND DATA=denssod ATOM=p1 ZLOWER=-0.5 ZUPPER=0.5 SIGMA=0.01
+
+# Get the Na-Cl coordination number distribution at the interface and in the bulk
+cnint: COORDINATIONNUMBER SPECIESA=sodint SPECIESB=chl SWITCH={RATIONAL R_0=0.355 NN=32 MM=64} MEAN HIGHEST
+cnblk: COORDINATIONNUMBER SPECIESA=sodblk SPECIESB=chl SWITCH={RATIONAL R_0=0.355 NN=32 MM=64} MEAN HIGHEST
+
+# Report the mean and highest coordination numbers in the different regions
+PRINT ARG=cnint.*,cnblk.* FILE=cn-regions.dat
+
+# DFS on ion clusters at the interface
+mat0: CONTACT_MATRIX ATOMS=cnint SWITCH={GAUSSIAN D_0=0.355 R_0=0.01}
+dfs0: DFSCLUSTERING MATRIX=mat0
+# Number of ion clusters at the interface
+nclust0: CLUSTER_DISTRIBUTION CLUSTERS=dfs0 MORE_THAN={GAUSSIAN D_0=1.95 R_0=0.01 D_MAX=1.99}
+# Largest cluster at the interface
+clust0nat: CLUSTER_NATOMS CLUSTERS=dfs0 CLUSTER=1
+
+# DFS on ion clusters in the bulk
+mat1: CONTACT_MATRIX ATOMS=cnblk SWITCH={RATIONAL R_0=0.355 D_MAX=0.356}
+dfs1: DFSCLUSTERING MATRIX=mat1
+# Number of ion clusters in the bulk
+nclust1: CLUSTER_DISTRIBUTION CLUSTERS=dfs1 MORE_THAN={GAUSSIAN D_0=1.95 R_0=0.01 D_MAX=1.99}
+# Largest cluster in the bulk
+clust1nat: CLUSTER_NATOMS CLUSTERS=dfs1 CLUSTER=1
+
+PRINT ARG=nclust0.*,clust0nat.*,nclust1.*,clust1nat.* FILE=cluster.dat
